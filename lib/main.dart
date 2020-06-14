@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
@@ -29,18 +28,26 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<int> _numbers = [];
+  List<int> _arr = [];
   int _sampleSize = 500;
   StreamController<List<int>> _streamController;
   Stream<List<int>> _stream;
+  bool done = false;
+  String _currentSortAlgo = 'BUBBLE';
 
-  _randomise() {
-    _numbers = [];
+  _setSortAlgo(String type) {
+    setState(() {
+      _generate();
+      _currentSortAlgo = type;
+    });
+  }
+
+  _generate() {
+    _arr = [];
     for (int i = 0; i < _sampleSize; i++) {
-      _numbers.add(Random().nextInt(_sampleSize));
+      _arr.add(Random().nextInt(_sampleSize));
     }
-    // setState(() {});
-    _streamController.add(_numbers);
+    _streamController.add(_arr);
   }
 
   @override
@@ -48,21 +55,136 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _streamController = StreamController<List<int>>();
     _stream = _streamController.stream;
-    _randomise();
+    _generate();
+  }
+
+  @override
+  void dispose() {
+    _streamController.close();
+    super.dispose();
   }
 
   _sort() async {
-    for (int i = 0; i < _numbers.length - 1; i++) {
-      for (int j = 0; j < _numbers.length - i - 1; j++) {
-        if (_numbers[j] > _numbers[j + 1]) {
-          int temp = _numbers[j];
-          _numbers[j] = _numbers[j + 1];
-          _numbers[j + 1] = temp;
+    switch (_currentSortAlgo) {
+      case 'BUBBLE':
+        print('bubble');
+        for (int i = 0; i < _arr.length - 1; i++) {
+          for (int j = 0; j < _arr.length - i - 1; j++) {
+            if (_arr[j] > _arr[j + 1]) {
+              int temp = _arr[j];
+              _arr[j] = _arr[j + 1];
+              _arr[j + 1] = temp;
+            }
+            await Future.delayed(Duration(microseconds: 50));
+            _streamController.add(_arr);
+          }
         }
-        await Future.delayed(Duration(microseconds: 100));
-        // setState(() {});
-        _streamController.add(_numbers);
+        print('done');
+        break;
+      case 'SELECTION':
+        print('selection');
+        for (int i = 0; i < _arr.length - 1; i++) {
+          int min_index = i;
+          for (int j = i + 1; j < _arr.length; j++) {
+            if (_arr[j] < _arr[min_index]) {
+              min_index = j;
+            }
+            int temp = _arr[min_index];
+            _arr[min_index] = _arr[i];
+            _arr[i] = temp;
+          }
+          await Future.delayed(Duration(microseconds: 1000));
+          _streamController.add(_arr);
+        }
+        break;
+      case 'MERGE':
+        print('merge');
+        _mergeSort(0, _sampleSize.toInt() - 1);
+        break;
+    }
+  }
+
+  _mergeSort(int leftIndex, int rightIndex) async {
+    Future<void> merge(int leftIndex, int middleIndex, int rightIndex) async {
+      int leftSize = middleIndex - leftIndex + 1;
+      int rightSize = rightIndex - middleIndex;
+
+      List leftList = new List(leftSize);
+      List rightList = new List(rightSize);
+
+      for (int i = 0; i < leftSize; i++) leftList[i] = _arr[leftIndex + i];
+      for (int j = 0; j < rightSize; j++)
+        rightList[j] = _arr[middleIndex + j + 1];
+      int i = 0, j = 0;
+      int k = leftIndex;
+      while (i < leftSize && j < rightSize) {
+        if (leftList[i] <= rightList[j]) {
+          _arr[k] = leftList[i];
+          i++;
+        } else {
+          _arr[k] = rightList[j];
+          j++;
+        }
+        await Future.delayed((Duration(microseconds: 200)));
+        _streamController.add(_arr);
+        k++;
       }
+      while (i < leftSize) {
+        _arr[k] = leftList[i];
+        i++;
+        k++;
+        await Future.delayed((Duration(microseconds: 200)));
+        _streamController.add(_arr);
+      }
+      while (j < rightSize) {
+        _arr[k] = rightList[j];
+        j++;
+        k++;
+        await Future.delayed((Duration(microseconds: 200)));
+        _streamController.add(_arr);
+      }
+    }
+
+    if (leftIndex < rightIndex) {
+      int middleIndex = (rightIndex + leftIndex) ~/ 2;
+      await _mergeSort(leftIndex, middleIndex);
+      await _mergeSort(middleIndex + 1, rightIndex);
+      await Future.delayed(Duration(microseconds: 50));
+      _streamController.add(_arr);
+      await merge(leftIndex, middleIndex, rightIndex);
+    }
+  }
+
+
+  _mergesort(ar) {
+    if (ar.length > 1) {
+      int mid = (ar.length / 2).round();
+      List<int> left = ar.sublist(0, mid);
+      List<int> right = ar.sublist(mid, _arr.length);
+      _mergesort(left);
+      _mergesort(right);
+      int i = 0, j = 0, k = 0;
+      while (i < left.length && j < right.length) {
+        if (left[i] < right[j]) {
+          ar[k] = left[i];
+          i += 1;
+        } else {
+          ar[k] = right[j];
+          j += 1;
+        }
+        k += 1;
+      }
+      while (i < left.length) {
+        ar[k] = left[i];
+        i += 1;
+        k += 1;
+      }
+      while (i < right.length) {
+        ar[k] = right[j];
+        j += 1;
+        k += 1;
+      }
+      print(ar);
     }
   }
 
@@ -71,15 +193,49 @@ class _MyHomePageState extends State<MyHomePage> {
     return Container(
       color: Colors.white,
       child: Scaffold(
-        backgroundColor: Colors.lightBlueAccent[100].withOpacity(0.3),
+        backgroundColor: Colors.blueGrey[200],
         appBar: AppBar(
-          title: Center(
-              child: Text(
-            'SORTING',
+          title: Text(
+            _currentSortAlgo + ' SORT',
             style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.w400, fontSize: 22),
-          )),
-          backgroundColor: Colors.blue[900],
+                color: Colors.white, fontWeight: FontWeight.w300, fontSize: 22),
+          ),
+          actions: [
+            PopupMenuButton<String>(
+              initialValue: 'BUBBLE',
+              color: Colors.blueGrey[800],
+              tooltip: 'Select an Algorithm',
+              itemBuilder: (context) {
+                return [
+                  PopupMenuItem(
+                    value: 'BUBBLE',
+                    child: Text(
+                      'Bubble Sort',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'SELECTION',
+                    child: Text(
+                      'Selection Sort',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'MERGE',
+                    child: Text(
+                      'Merge Sort',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ];
+              },
+              onSelected: (String value) {
+                _setSortAlgo(value);
+              },
+            )
+          ],
+          backgroundColor: Colors.blueGrey[900],
         ),
         body: Container(
           child: StreamBuilder<Object>(
@@ -87,20 +243,21 @@ class _MyHomePageState extends State<MyHomePage> {
               builder: (context, snapshot) {
                 int counter = 0;
                 return Row(
-                    children: _numbers.map((int number) {
+                    children: _arr.map((int number) {
                   counter++;
                   return CustomPaint(
                     painter: ContainerPainter(
                         width: MediaQuery.of(context).size.width / _sampleSize,
                         value: number,
-                        index: counter),
+                        index: counter,
+                        samplesize: _sampleSize),
                   );
                 }).toList());
               }),
         ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
-              color: Colors.blue[900],
+              color: Colors.blueGrey[900],
               borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(20), topRight: Radius.circular(20))),
           child: Row(
@@ -109,10 +266,13 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               Expanded(
                 child: FlatButton(
-                  onPressed: _randomise,
+                  onPressed: _generate,
                   child: Text(
                     'GENERATE ARRAY',
-                    style: TextStyle(fontSize: 16,color: Colors.white,fontWeight: FontWeight.w300),
+                    style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w300),
                   ),
                 ),
               ),
@@ -120,11 +280,14 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: FlatButton(
                   child: Text(
                     'SORT',
-                    style: TextStyle(fontSize: 16,color: Colors.white,fontWeight: FontWeight.w300),
+                    style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w300),
                   ),
                   onPressed: _sort,
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -135,30 +298,30 @@ class _MyHomePageState extends State<MyHomePage> {
 
 class ContainerPainter extends CustomPainter {
   final double width;
-  final int value, index;
+  final int value, index, samplesize;
 
-  ContainerPainter({this.width, this.value, this.index});
+  ContainerPainter({this.width, this.value, this.index, this.samplesize});
 
   @override
   void paint(Canvas canvas, Size size) {
     Paint paint = Paint();
-    if (this.value < 500 * .10) {
-      paint.color = Colors.blue[100];
-    } else if (this.value < 500 * .20) {
-      paint.color = Colors.blue[200].withOpacity(0.7);
-    } else if (this.value < 500 * .30) {
+    if (this.value < samplesize * .10) {
+      paint.color = Colors.blue[100].withOpacity(0.7);
+    } else if (this.value < samplesize * .20) {
+      paint.color = Colors.blue[300].withOpacity(0.4);
+    } else if (this.value < samplesize * .30) {
       paint.color = Colors.blue[200];
-    } else if (this.value < 500 * .40) {
+    } else if (this.value < samplesize * .40) {
       paint.color = Colors.blue[300];
-    } else if (this.value < 500 * .50) {
+    } else if (this.value < samplesize * .50) {
       paint.color = Colors.blue[400];
-    } else if (this.value < 500 * .60) {
+    } else if (this.value < samplesize * .60) {
       paint.color = Colors.blue[500];
-    } else if (this.value < 500 * .70) {
+    } else if (this.value < samplesize * .70) {
       paint.color = Colors.blue[600];
-    } else if (this.value < 500 * .80) {
+    } else if (this.value < samplesize * .80) {
       paint.color = Colors.blue[700];
-    } else if (this.value < 500 * .90) {
+    } else if (this.value < samplesize * .90) {
       paint.color = Colors.blue[800];
     } else {
       paint.color = Colors.blue[900];
